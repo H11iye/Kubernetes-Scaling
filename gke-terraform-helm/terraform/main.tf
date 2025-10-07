@@ -21,3 +21,34 @@ resource "google_container_node_pool" "primary_nodes" {
   }
 }
 
+
+# Service account for cloud build or CI/CD pipeline
+
+resource "google_service_account" "cloudbuild" {
+  account_id = "cloudbuild-sa"
+  display_name = "Cloud Build Service Account"
+}
+
+# Roles for pushing images to Artifact Registry
+resource "google_project_iam_member" "artifact_registry_roles" {
+  for_each = toset([
+    "roles/artifactregistry.writer",
+    "roles/artifactregistry.reader",
+    "roles/storage.admin",
+    "roles/viewer"
+  ])
+  project = var.project_id
+  role = each.key
+  member  = "serviceAccount:${google_service_account.cloudbuild.email}"
+}
+
+# Roles for deploying to GKE
+resource "google_project_iam_member" "gke_deployer_roles" {
+  for_each = toset([
+    "roles/container.developer",
+    "roles/container.admin"
+  ])
+  project = var.project_id
+  role = each.key
+  member  = "serviceAccount:${google_service_account.cloudbuild.email}"
+}
