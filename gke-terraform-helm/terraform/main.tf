@@ -4,6 +4,15 @@ resource "google_container_cluster" "gke" {
   remove_default_node_pool = true
   initial_node_count = 1
   # TO DO - Add network and ip_allocation_policy etc
+  # Enable workload identity (required for K8s-> GCP access)
+  workload_identity_config {
+    workload_pool = "${var.project_id}.svc.id.goog"
+  }
+
+  # Enable shielded nodes, release channel, etc for production
+  release_channel {
+    channel = "STABLE"
+  }
 }
 
 resource "google_container_node_pool" "primary_nodes" {
@@ -11,10 +20,20 @@ resource "google_container_node_pool" "primary_nodes" {
   location = var.zone     # use zone instead of region
   cluster = google_container_cluster.gke.name
   node_count = var.node_count
+
+  autoscaling {
+    min_node_count = 1
+    max_node_count = 3
+  }
   node_config {
     machine_type = var.machine_type
     disk_size_gb = var.disk_size_gb
     disk_type = "pd-standard" # use cheaper standard persistent disk instead of pd-ssd
+    # protect nodes metadata and enable per-pod metadata (workload identity)
+    workload_metadata_config {
+      mode = "GKE_METADATA_SERVER"
+    }
+    
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform",
     ]

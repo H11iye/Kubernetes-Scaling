@@ -1,14 +1,15 @@
-name: Build and Deploy to Cloud Run
+name: Build and Deploy to GKE
 
 on: 
   push:
     branches: [ "main" ]
 
 env:
-  PRPJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  APP_NAME: express-app
+  IMAGE_TAG: latest
+  CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
+  ZONE: ${{ secrets.GCP_ZONE }}
   REGION: ${{ secrets.GCP_REGION }}
-  APP_NAME: my-app
-  REPO_NAME: ${{ secrets.GCP_REPO_NAME }}  # Match terraform repo_id
 
 
 jobs:
@@ -20,13 +21,14 @@ jobs:
       id-token: 'write'
 
     steps:
-      - name: Checkout repo
+      - name: Checkout 
         uses: actions/checkout@v4
       # Service account key is stored in GitHub Secrets as GCP_SA_KEY and updated in the repo settings
-      - name: Authenticate to Google Cloud
+      - name: Authenticate to GCP using workload identity federation
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }} 
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
 
       # Install gcloud CLI
       - name: Set up gloud
@@ -34,40 +36,28 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      
-    # Verify gcloud authentication
-      - name: Verify gcloud authentication
-        run: |
-          gcloud auth list
-
-      # Verify Artifact Registry access
-
-      - name: Verify Artifact Registry access
-        run: |
-          gcloud artifacts repositories list --location=${{ secrets.GCP_REGION }}
-
       - name: Configure Docker auth for Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
         
       # Build Docker image
       - name: Build Docker image
         run: |
-          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_REPO_NAME }}/${{ env.APP_NAME }}:latest"
+          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_REPO_NAME }}/${{ env.APP_NAME }}:${{ env.IMAGE_TAG }}"
           docker build -t $IMAGE .
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
-      # Push Docker image to Artifact Registry
-
-      - name: Push Docker image to Artifact Registry
+      - name: Get kubeconfig
         run: |
-          docker push ${{ env.IMAGE }}
-    # Deploy to Cloud Run
+          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} --zone ${{ env.ZONE }} --project ${{ secrets.GCP_PROJECT_ID }}
 
-
-      - name: Deploy to Cloud Run
+      - name: Install Helm
         run: |
-          gcloud run deploy my-app \
-            --image ${{ env.IMAGE }} \
-            --region ${{ secrets.GCP_REGION }} \
-            --platform managed \
-            --allow-unauthenticated 
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      
+      - name: Deploy Helm chart
+        run: |
+          helm upgrade --install ${{ env.APP_NAME }} ./helm/express-app \
+            --set image.repository=${{ env.IMAGE }} \
+            --set image.tag=${{ env.IMAGE_TAG }} \
+            
+  
