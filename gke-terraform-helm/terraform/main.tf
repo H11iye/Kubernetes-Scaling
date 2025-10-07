@@ -33,7 +33,7 @@ resource "google_container_node_pool" "primary_nodes" {
     workload_metadata_config {
       mode = "GKE_METADATA_SERVER"
     }
-    
+
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform",
     ]
@@ -79,4 +79,27 @@ resource "google_artifact_registry_repository" "express_app_repo" {
   location = var.region
   repository_id = "express-app-repo"
   format = "DOCKER"
+}
+
+resource "google_iam_workload_identity_pool" "github_pool" {
+ workload_identity_pool_id = "github-pool"
+ display_name = "GitHub Actions Pool" 
+}
+
+resource "google_iam_workload_identity_pool_provider" "github_provider" {
+  workload_identity_pool_id = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
+  workload_identity_pool_provider_id = "github-provider"
+  display_name = "GitHub OIDC Provider"
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+
+  attribute_mapping = {
+    "google.subject" = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+    "attribute.branch" = "assertion.ref"
+  }
+
+  attribute_condition = "attribute.repository == 'H11iye/Kubernetes-Scaling' && attribute.branch == 'main'"
 }
