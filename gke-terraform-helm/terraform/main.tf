@@ -35,7 +35,10 @@ resource "google_project_iam_member" "artifact_registry_roles" {
     "roles/artifactregistry.writer",
     "roles/artifactregistry.reader",
     "roles/storage.admin",
-    "roles/viewer"
+    "roles/viewer",
+    "roles/compute.admin",
+    "roles/iam.serviceAccountUser",
+    "roles/storage.objectAdmin"
   ])
   project = var.project_id
   role = each.key
@@ -51,4 +54,10 @@ resource "google_project_iam_member" "gke_deployer_roles" {
   project = var.project_id
   role = each.key
   member  = "serviceAccount:${google_service_account.cloudbuild.email}"
+}
+resource "google_artifact_registry_repository" "express_app_repo" {
+  project = var.project_id
+  location = var.region
+  repository_id = "express-app-repo"
+  format = "DOCKER"
 }
