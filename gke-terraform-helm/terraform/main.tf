@@ -8,7 +8,7 @@ resource "google_container_cluster" "gke" {
 
 resource "google_container_node_pool" "primary_nodes" {
   name = "primary-pool"
-  location = var.region
+  location = var.zone
   cluster = google_container_cluster.gke.name
   node_count = var.node_count
   node_config {
