@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]
 
 env:
+  # Update secrets in repo settings
   APP_NAME: express-app
   IMAGE_TAG: latest
   CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
