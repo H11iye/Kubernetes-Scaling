@@ -30,7 +30,7 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           # Get this value from terraform output
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }} 
-          service_account: "github-ci-cd@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          service_account: "cloudbuild-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
 
       # Install gcloud CLI
       - name: Set up gloud
