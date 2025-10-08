@@ -28,6 +28,7 @@ jobs:
         uses: google-github-actions/auth@v3
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
+          # Get this value from terraform output
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }} 
           service_account: "github-ci-cd@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
 
