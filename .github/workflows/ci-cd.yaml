@@ -53,13 +53,24 @@ jobs:
         run: |
           gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} --zone ${{ env.ZONE }} --project ${{ secrets.GCP_PROJECT_ID }}
 
+      - name: Install GKE auth plugin
+        run: |
+          sudo apt-get update && sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+
       - name: Install Helm
         run: |
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-      
-      - name: Deploy Helm chart
+
+      - name: Get GKE credentials
         run: |
-          helm upgrade --install ${{ env.APP_NAME }} ./helm/express-app \
+          gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} --zone ${{ env.ZONE }} --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Deploy Helm chart
+        env:
+          USE_GKE_GCLOUD_AUTH_PLUGIN: "True"
+        run: |
+          helm upgrade --install express-app ./helm/express-app \
+            --namespace default \
             --set image.repository=${{ env.IMAGE }} \
             --set image.tag=${{ env.IMAGE_TAG }} \
             
