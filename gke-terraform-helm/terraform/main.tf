@@ -89,8 +89,8 @@ resource "google_artifact_registry_repository" "express_app_repo" {
 
 resource "google_iam_workload_identity_pool" "github_pool" {
   provider = google-beta.google-beta
- workload_identity_pool_id = "github-pool"
- display_name = "GitHub Actions Pool" 
+ workload_identity_pool_id = "github-pool-v2"
+ display_name = "GitHub Actions Pool v2" 
  description = "Pool for GitHub Actions OIDC tokens"
 }
 
