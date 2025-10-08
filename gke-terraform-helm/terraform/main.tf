@@ -31,7 +31,7 @@ resource "google_container_node_pool" "primary_nodes" {
     disk_type = "pd-standard" # use cheaper standard persistent disk instead of pd-ssd
     # protect nodes metadata and enable per-pod metadata (workload identity)
     workload_metadata_config {
-      mode = "GKE_METADATA_SERVER"
+      mode = "GKE_METADATA"
     }
 
     oauth_scopes = [
@@ -57,13 +57,19 @@ resource "google_project_iam_member" "artifact_registry_roles" {
     "roles/viewer",
     "roles/compute.admin",
     "roles/iam.serviceAccountUser",
-    "roles/storage.objectAdmin"
+    "roles/storage.objectAdmin",
+    "roles/run.developer"
   ])
   project = var.project_id
   role = each.key
   member  = "serviceAccount:${google_service_account.cloudbuild.email}"
 }
 
+resource "google_service_account_iam_member" "allow_wif" {
+  service_account_id = google_service_account.cloudbuild.name # full resource name
+  role = "roles/iam.workloadIdentityUser"
+  member = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool.name}/attribute.repository/H11iye/Kubernetes-Scaling"
+}
 # Roles for deploying to GKE
 resource "google_project_iam_member" "gke_deployer_roles" {
   for_each = toset([
@@ -82,11 +88,14 @@ resource "google_artifact_registry_repository" "express_app_repo" {
 }
 
 resource "google_iam_workload_identity_pool" "github_pool" {
+  provider = google-beta.google-beta
  workload_identity_pool_id = "github-pool"
  display_name = "GitHub Actions Pool" 
+ description = "Pool for GitHub Actions OIDC tokens"
 }
 
 resource "google_iam_workload_identity_pool_provider" "github_provider" {
+  provider = google-beta.google-beta
   workload_identity_pool_id = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
   workload_identity_pool_provider_id = "github-provider"
   display_name = "GitHub OIDC Provider"
@@ -95,11 +104,14 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
     issuer_uri = "https://token.actions.githubusercontent.com"
   }
 
+  # Map GitHub OIDC claims 
   attribute_mapping = {
     "google.subject" = "assertion.sub"
+    "attribute.actor" = "assertion.actor"
     "attribute.repository" = "assertion.repository"
+    "attribute.repository_owner" = "assertion.repository_owner"
     "attribute.branch" = "assertion.ref"
   }
-
-  attribute_condition = "attribute.repository == 'H11iye/Kubernetes-Scaling' && attribute.branch == 'main'"
+  # Allow only tokens from this repo and branch
+  attribute_condition = "assertion.repository == \"H11iye/Kubernetes-Scaling\" && assertion.ref == \"refs/heads/main\""
 }

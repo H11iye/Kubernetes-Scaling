@@ -11,31 +11,37 @@ env:
   ZONE: ${{ secrets.GCP_ZONE }}
   REGION: ${{ secrets.GCP_REGION }}
 
+permissions:
+  contents: 'read' # needed for checkout
+  id-token: 'write' # required to mint OIDC tokens
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: 'read'
-      id-token: 'write'
 
     steps:
       - name: Checkout 
         uses: actions/checkout@v4
       # Service account key is stored in GitHub Secrets as GCP_SA_KEY and updated in the repo settings
       - name: Authenticate to GCP using workload identity federation
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }} 
-          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          service_account: "github-ci-cd@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
 
       # Install gcloud CLI
       - name: Set up gloud
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+      - name: Test (whoami / list)
+        run: |
+          gcloud auth list
+          gcloud config set project ${{ secrets.GCP_PROJECT_ID }}
+          gcloud porjects describe ${{ secrets.GCP_PROJECT_ID }} --format="value(projectNumber)" 
+        # Quick API call to verify token works
       - name: Configure Docker auth for Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
         
