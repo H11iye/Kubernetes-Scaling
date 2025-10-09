@@ -5,7 +5,7 @@ metadata:
   labels:
     app: express-app
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: express-app
@@ -20,7 +20,7 @@ spec:
           image: express-app:latest # local image for minikube testing
           imagePullPolicy: IfNotPresent # Tells kubernetes to use local image
           ports:
-          - containerPort: 3000
+          - containerPort: 80
           resources:
             requests:
               memory: "128Mi"
