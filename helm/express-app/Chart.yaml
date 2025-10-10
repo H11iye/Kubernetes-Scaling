@@ -1,5 +1,0 @@
-apiVersion: v2
-name: express-app
-description: A Helm chart for Express.js app
-version: 0.1.0
-appVersion: "1.0.0"
