@@ -49,6 +49,11 @@ jobs:
           docker build -t $IMAGE -f express-app/Dockerfile express-app
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
+      # Push Image to Artifact Registry
+      - name: Push Docker
+        run: |
+          docker push ${{ env.IMAGE }}
+
       - name: Get kubeconfig
         run: |
           gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} --zone ${{ env.ZONE }} --project ${{ secrets.GCP_PROJECT_ID }}
@@ -81,13 +86,29 @@ jobs:
         run: |
           gcloud container clusters get-credentials ${{ env.CLUSTER_NAME }} --zone ${{ env.ZONE }} --project ${{ secrets.GCP_PROJECT_ID }}
 
-      # - name: Deploy Helm chart
-      #   env:
-      #     USE_GKE_GCLOUD_AUTH_PLUGIN: "True"
-      #   run: |
-      #     helm upgrade --install express-app ./helm/express-app \
-      #       --namespace default \
-      #       --set image.repository=${{ env.IMAGE }} \
-      #       --set image.tag=${{ env.IMAGE_TAG }} \
+      - name: Deploy Helm chart
+        env:
+          USE_GKE_GCLOUD_AUTH_PLUGIN: "True"
+        run: |
+          helm upgrade --install express-app ./helm/express-app \
+            --namespace default \
+            --set image.repository="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_REPO_NAME }}/${{ env.APP_NAME }}" \
+            --set image.tag=${{ env.IMAGE_TAG }} \
             
-  
+      - name: Update helm dependencies
+        run: |
+          helm dependency update ./helm/express-app
+
+      - name: Lint Helm chart
+        run: |
+          helm lint ./helm/express-app
+
+      - name: Template helm chart
+        run: |
+          helm template express-app ./helm/express-app
+
+      # Add rollout verification step
+      - name: Verify Deployment rollout
+        run: |
+          kubectl rollout status deployment/${{ env.APP_NAME }} --timeout=120s
+          kubectl get pods -o wide
